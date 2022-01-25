@@ -4,6 +4,8 @@ The project consists of an implementation of MADDPG (Multi Agent Deep Determinis
 A wide description of the Reacher Unity environments is on [Unity ML-Agents Toolkit](https://github.com/Unity-Technologies/ml-agents).
 Let's underline that for this project we used a slightly different version of the original Unity Environment, provided by the [Reinforcement Learning Nanodegree progam of **Udacity**]( https://www.udacity.com/course/deep-reinforcement-learning-nanodegree--nd893).
 
+![This is an image](tennis.gif)
+
 ## Descritpion of the environment
 
 In this environment, two agents control rackets to bounce a ball over a net. If an agent hits the ball over the net, it receives a reward of +0.1. If an agent lets a ball hit the ground or hits the ball out of bounds, it receives a reward of -0.01.
