@@ -16,15 +16,10 @@ TAU = 6e-2              # for soft update of target parameters
 LR_ACTOR = 1e-4         # learning rate of the actor 
 LR_CRITIC = 1e-4        # learning rate of the critic
 WEIGHT_DECAY = 0        # L2 weight decay
-UPDATE_EVERY = 1
-NUM_UPDATE = 1
+UPDATE_EVERY = 1        # Update every time step
+NUM_UPDATE = 1          # Update once at each time step
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
-
-eps_start = 6           # Noise level start
-eps_end = 0             # Noise level end
-eps_decay = 250         # Number of episodes to decay over from start to end
-
 
 class Agent():
     """Interacts with and learns from the environment."""
@@ -34,7 +29,6 @@ class Agent():
         
         Params
         ======
-            n_agents(int): number of agents
             state_size (int): dimension of each state
             action_size (int): dimension of each action
             random_seed (int): random seed
@@ -43,7 +37,6 @@ class Agent():
         self.action_size = action_size
         self.seed = random.seed(random_seed)
         self.t_step = 0
-        self.eps = eps_start
 
         # Actor Network 0 (w/ Target Network)
         self.actor_local0 = Actor(state_size, action_size, random_seed).to(device)
@@ -78,7 +71,7 @@ class Agent():
         self.noise.reset()
 
     def act(self, states, add_noise=True):
-        """Returns actions for given state as per current policy."""
+        """Returns actions for given state as per current policy with noise"""
         states = torch.from_numpy(states).float().to(device)
         self.actor_local0.eval()
         self.actor_local1.eval()
@@ -89,11 +82,11 @@ class Agent():
         self.actor_local1.train()
         if add_noise:
             actions = np.array((action0, action1)).reshape((2,2))
-            actions += self.eps*self.noise.sample()
+            actions += self.noise.sample()
         return np.clip(actions, -1, 1)
 
     def step(self, states, actions, rewards, next_states, dones):
-       
+        """Save experience in replay memory, and use random sample from buffer to learn."""
         self.memory0.add(states[0], actions[0], rewards[0], next_states[0], dones[0])
         self.memory1.add(states[1], actions[1], rewards[1], next_states[1], dones[1])
 
@@ -106,14 +99,15 @@ class Agent():
 
     def learn(self, experiences0, experiences1, gamma):
         """Update policy and value parameters using given batch of experience tuples.
-        Q_targets = r + γ * critic_target(next_state, actor_target(next_state))
-        where:
+         Q_targets = r + γ * critic_target(next_state, actor_target(next_state))
+         where:
             actor_target(state) -> action
             critic_target(state, action) -> Q-value
 
         Params
         ======
-            experiences (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) tuples 
+            experiences0 (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) of the agent 0 tuples 
+            experiences1 (Tuple[torch.Tensor]): tuple of (s, a, r, s', done) of the agent 1 tuples
             gamma (float): discount factor
         """
         states0, actions0, rewards0, next_states0, dones0 = experiences0
@@ -124,8 +118,8 @@ class Agent():
         actions = torch.cat((actions0, actions1), dim=1).float().to(device)
         next_states = torch.cat((next_states0, next_states1), dim=1).float().to(device)
     
-        actions_next0 = self.actor_target0(next_states0)
-        actions_next1 = self.actor_target1(next_states1)
+        actions_next0 = self.actor_target0(states0)
+        actions_next1 = self.actor_target1(states1)
         actions_next = torch.cat((actions_next0, actions_next1), dim=1).float().to(device)
         
         # ---------------------------- update critic 0 ---------------------------- #
@@ -183,11 +177,6 @@ class Agent():
         # ----------------------- update target networks 1 ----------------------- #
         self.soft_update(self.critic_local1, self.critic_target1, TAU)
         self.soft_update(self.actor_local1, self.actor_target1, TAU)                     
-
-        # Update epsilon noise value
-        self.eps = self.eps - (1/eps_decay)
-        if self.eps < eps_end:
-            self.eps=eps_end
 
     def soft_update(self, local_model, target_model, tau):
         """Soft update model parameters.
